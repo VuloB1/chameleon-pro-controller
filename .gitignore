@@ -1,0 +1,12 @@
+bin/
+obj/
+dist/
+venv/
+installer/out/
+installer/deps/
+*.pdb
+# notas internas y material de trabajo
+PLAN.md
+tools/sonidos/
+tools/logo/
+tools/watch-windows.ps1
