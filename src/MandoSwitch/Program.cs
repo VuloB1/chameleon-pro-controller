@@ -205,6 +205,28 @@ static class SelfTest
             L.Set("auto");
             var cur = new Version(1, 1, 0);
             Check(Update.Newer("v1.2.0", cur) && Update.Newer("1.1.1", cur) && !Update.Newer("v1.1.0", cur) && !Update.Newer("v1.0.9", cur) && !Update.Newer("basura", cur), "comparar versiones");
+            // Sony: reportes sinteticos armados segun la documentacion (no hay mando real)
+            Check(Sony.Crc((byte)'1', "23456789"u8.ToArray(), 8) == 0xCBF43926, "crc32");
+            var d4 = new byte[64]; d4[0] = 1; d4[1] = 0; d4[2] = 255; d4[3] = 128; d4[4] = 128; d4[5] = 0x28; d4[6] = 0x21; d4[7] = 0x03; d4[8] = 200; d4[9] = 7; d4[30] = 0x1B;
+            var s4 = Sony.Parse(Model.DS4, d4, 64)!.Value; // hat 8 = suelto, cruz, L1 + Options, PS + panel tactil
+            Check(s4.B.HasFlag(Btn.A) && !s4.B.HasFlag(Btn.Up) && s4.B.HasFlag(Btn.LB) && s4.B.HasFlag(Btn.Guide) && s4.B.HasFlag(Btn.Touch), "ds4 usb botones");
+            Check(s4.LX == 0 && s4.LY == 255 && s4.LT == 200 && s4.RT == 7 && s4.Pct == 100 && s4.Charging == false, "ds4 usb ejes/bateria");
+            var d4b = new byte[78]; d4b[0] = 0x11; d4b[3] = 10; d4b[7] = 0x00; d4b[8] = 0x00; d4b[32] = 0x05;
+            var s4b = Sony.Parse(Model.DS4, d4b, 78)!.Value;
+            Check(s4b.LX == 10 && s4b.B.HasFlag(Btn.Up) && s4b.Pct == 55, "ds4 bluetooth"); // hat 0 = arriba
+            var d5 = new byte[64]; d5[0] = 1; d5[1] = 1; d5[5] = 99; d5[6] = 88; d5[8] = 0x02 | 0x40; d5[9] = 0x20; d5[53] = 0x1A;
+            var s5 = Sony.Parse(Model.DualSense, d5, 64)!.Value;
+            Check(s5.B.HasFlag(Btn.Right) && s5.B.HasFlag(Btn.B) && s5.B.HasFlag(Btn.Start) && s5.LT == 99 && s5.RT == 88 && s5.Pct == 100 && s5.Charging, "dualsense usb");
+            var d5b = new byte[78]; d5b[0] = 0x31; d5b[2] = 77; d5b[6] = 200; d5b[9] = 0x28; d5b[54] = 0x03;
+            var s5b = Sony.Parse(Model.DualSense, d5b, 78)!.Value;
+            Check(s5b.LX == 77 && s5b.RT == 0 && s5b.B.HasFlag(Btn.A) && s5b.Pct == 35 && !s5b.Charging, "dualsense bluetooth");
+            Check(Sony.Parse(Model.DS4, new byte[5], 5) is null && Sony.Parse(Model.DualSense, new byte[64], 64) is null, "sony reporte invalido");
+            foreach (var (m, usb) in new[] { (Model.DS4, false), (Model.DualSense, false), (Model.DS4, true), (Model.DualSense, true) })
+            {
+                var o = Sony.Output(m, usb, usb ? 64 : 78, 200, 100);
+                if (!usb) Check(BitConverter.ToUInt32(o, 74) == Sony.Crc(0xA2, o, 74), "crc salida " + m);
+                Check(o.Contains((byte)200) && o.Contains((byte)100), "motores en la salida " + m);
+            }
             Console.WriteLine("selftest OK");
         }
         catch (Exception e) { Console.WriteLine("selftest FALLO: " + e.Message); Environment.ExitCode = 1; }

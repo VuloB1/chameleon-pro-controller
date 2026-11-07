@@ -13,7 +13,7 @@ sealed class Bridge
     readonly CancellationToken ct;
     readonly ViGEmClient client = new();
     readonly IXbox360Controller pad;
-    volatile byte rumble;
+    volatile byte rumble, large, small;
 
     public volatile Status St = new(Kind.Waiting);
     public volatile bool Connected;
@@ -24,7 +24,7 @@ sealed class Bridge
         this.cfg = cfg; this.ct = ct;
         pad = client.CreateXbox360Controller();
         pad.AutoSubmitReport = false;
-        pad.FeedbackReceived += (_, e) => rumble = Math.Max(e.LargeMotor, e.SmallMotor);
+        pad.FeedbackReceived += (_, e) => { large = e.LargeMotor; small = e.SmallMotor; rumble = Math.Max(e.LargeMotor, e.SmallMotor); };
         // ViGEmBus 1.17 falla de forma esporadica la primera vez (Win32Exception sin codigo): reintentar
         for (int i = 1; ; i++)
         {
@@ -49,6 +49,7 @@ sealed class Bridge
             {
                 // USB primero: la entrada Bluetooth queda "fantasma" mientras el cable esta puesto y escribirle bloquea
                 var devs = DeviceList.Local.GetHidDevices(Pro.Vid, Pro.Pid)
+                    .Concat(DeviceList.Local.GetHidDevices(Sony.Vid).Where(d => Sony.ModelOf(d.ProductID) != null))
                     .OrderBy(d => d.DevicePath.Contains("00001124", StringComparison.OrdinalIgnoreCase));
                 foreach (var dev in devs)
                 {
@@ -74,7 +75,75 @@ sealed class Bridge
         if (!dev.TryOpen(out var s)) return;
         using var _s = s;
         Hide.Apply(dev.DevicePath); // se suelta al salir de la app (Run), no al desconectar el mando
-        Session(dev, s);
+        if (dev.VendorID == Sony.Vid) SonySession(dev, s, Sony.ModelOf(dev.ProductID)!.Value);
+        else Session(dev, s);
+    }
+
+    // EXPERIMENTAL (sin mando real para probar). Sticks de 8 bits ya centrados, gatillos analogicos, vibracion proporcional.
+    void SonySession(HidDevice dev, HidStream s, Model m)
+    {
+        s.ReadTimeout = 1500;
+        var buf = new byte[Math.Max(dev.GetMaxInputReportLength(), 78)];
+        bool usb = !dev.DevicePath.Contains("00001124", StringComparison.OrdinalIgnoreCase);
+        int outLen = dev.GetMaxOutputReportLength();
+        Sony.Init(s, m, usb, dev.GetMaxFeatureReportLength());
+
+        string via = (usb ? "USB" : "Bluetooth") + $" ({Sony.Name(m)})";
+        var L = new Stick { Cx = 127.5, Cy = 127.5, Range = 127 };
+        var R = new Stick { Cx = 127.5, Cy = 127.5, Range = 127 };
+        Log.Write($"Conectado por {via} [experimental]");
+        Connected = true; St = new(Kind.Connected, via, -1, false, true);
+
+        bool rumbleOk = true;
+        (byte, byte) sent = (0, 0);
+        long lastSend = 0;
+        void Send(byte lg, byte sm)
+        {
+            try { s.Write(Sony.Output(m, usb, outLen, lg, sm)); sent = (lg, sm); lastSend = Environment.TickCount64; }
+            catch (Exception e) { rumbleOk = false; Log.Write("Salida Sony desactivada: " + e.Message); } // la entrada sigue funcionando
+        }
+        Send(0, 0); // fija el color de la barra de luz
+
+        int lastBat = -2;
+        while (!ct.IsCancellationRequested)
+        {
+            int n = s.Read(buf);
+            if (Sony.Parse(m, buf, n) is not { } f) continue;
+            if (f.Pct != lastBat)
+            {
+                lastBat = f.Pct;
+                LowBattery = f.Pct is >= 0 and <= 25 && !f.Charging;
+                St = new(Kind.Connected, via, f.Pct, f.Charging, true);
+            }
+            SonyMap(f, L, R);
+            pad.SubmitReport();
+
+            byte lg = large, sm = small;
+            if (rumbleOk && ((lg, sm) != sent || (lg | sm) != 0 && Environment.TickCount64 - lastSend > 2000)) Send(lg, sm);
+        }
+    }
+
+    static readonly (Btn b, Xbox360Button x)[] SonyButtons =
+    {
+        (Btn.A, Xbox360Button.A), (Btn.B, Xbox360Button.B), (Btn.X, Xbox360Button.X), (Btn.Y, Xbox360Button.Y),
+        (Btn.LB, Xbox360Button.LeftShoulder), (Btn.RB, Xbox360Button.RightShoulder), (Btn.Back, Xbox360Button.Back),
+        (Btn.Start, Xbox360Button.Start), (Btn.L3, Xbox360Button.LeftThumb), (Btn.R3, Xbox360Button.RightThumb),
+        (Btn.Guide, Xbox360Button.Guide), (Btn.Up, Xbox360Button.Up), (Btn.Down, Xbox360Button.Down),
+        (Btn.Left, Xbox360Button.Left), (Btn.Right, Xbox360Button.Right),
+    };
+
+    void SonyMap(SFrame f, Stick L, Stick R)
+    {
+        ScreenshotOnCapture((f.B & Btn.Touch) != 0); // el clic del panel tactil hace de boton Capture
+        foreach (var (b, x) in SonyButtons) pad.SetButtonState(x, (f.B & b) != 0);
+        pad.SetSliderValue(Xbox360Slider.LeftTrigger, f.LT);
+        pad.SetSliderValue(Xbox360Slider.RightTrigger, f.RT);
+        var (lx, ly) = L.Norm(f.LX, 255 - f.LY); // en el mando Y crece hacia abajo
+        var (rx, ry) = R.Norm(f.RX, 255 - f.RY);
+        pad.SetAxisValue(Xbox360Axis.LeftThumbX, (short)(lx * 32767));
+        pad.SetAxisValue(Xbox360Axis.LeftThumbY, (short)(ly * 32767));
+        pad.SetAxisValue(Xbox360Axis.RightThumbX, (short)(rx * 32767));
+        pad.SetAxisValue(Xbox360Axis.RightThumbY, (short)(ry * 32767));
     }
 
     void Session(HidDevice dev, HidStream s)

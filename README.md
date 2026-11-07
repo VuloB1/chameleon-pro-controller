@@ -108,7 +108,8 @@ Steam Input wants to manage any controller it sees, which causes stray button pr
 
 - Tested with **one third-party (clone) Switch Pro Controller**, over Bluetooth and USB, on Windows 11. Genuine controllers should work (the protocol is the same and the centre is measured, not assumed), but they have not been tested by the author. Reports are welcome.
 - **Rumble is on/off.** On the tested clone, amplitude is ignored by the hardware, so Chameleon sends a fixed pattern. HD rumble is not implemented.
-- **Not supported:** gyroscope/motion, NFC/amiibo, Joy-Con (single or paired), analog triggers (the hardware has none), and more than one controller at a time.
+- **Experimental: DualShock 4 and DualSense** (USB and Bluetooth). Written from the public protocol documentation and covered by self-test with synthetic reports, but **never tested on a real controller**. Buttons map by position (Cross = A, Circle = B...), triggers are analog, rumble is proportional, Share/Create = Back, and the touchpad click works as the Capture button. The tray status says *(experimental)* while one is connected. If it misbehaves, please open an issue with the log (`%AppData%\Chameleon\log.txt`).
+- **Not supported:** gyroscope/motion, touchpad, lightbar/adaptive-trigger control, NFC/amiibo, Joy-Con (single or paired), analog triggers on the Switch pad (the hardware has none), generic DirectInput pads, and more than one controller at a time.
 - **Screenshots** use a regular screen grab: games in *exclusive* fullscreen may capture as black; windowed or borderless works.
 - **Windows 10/11, x64 only.**
 - ViGEmBus was retired by its author in 2023. It still works and is bundled/used as is; a replacement may be needed in the long run.
@@ -149,7 +150,7 @@ To build the installer, download the two driver installers into `installer/deps/
 
 ```powershell
 & "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe" installer\MandoSwitch.iss
-# -> installer\out\Chameleon-Setup-1.2.0.exe
+# -> installer\out\Chameleon-Setup-1.3.0.exe
 ```
 
 The installer needs Inno Setup 6.5 or newer for the bundled `installer/Languages/ChineseSimplified.isl`; the other languages come with Inno Setup.
@@ -161,7 +162,7 @@ The installer needs Inno Setup 6.5 or newer for the bundled `installer/Languages
 - **Protocol.** Over Bluetooth the controller starts in the simple report `0x3F`; sending subcommand `0x03` with argument `0x30` switches it to the full report `0x30`. Over USB the `0x80 0x02` handshake and `0x80 0x04` ("no timeout") come first. Report `0x30`: byte 2 battery/connection, bytes 3-5 buttons, bytes 6-11 the two sticks (12 bits per axis). Output goes in report `0x01` (subcommand in byte 10) or `0x10` (rumble only), with the length taken from the HID capabilities (49 over Bluetooth, 64 over USB).
 - **Calibration.** The stick centre is the average of 40 frames taken when the controller connects; the radial range starts at 1500 counts and grows to what is observed (capped at 2047). Inside the dead zone the output is exactly zero.
 - **Hiding.** HidHide's command-line tool is used to register Chameleon's executable, hide the device instance path and turn the cloak on. Everything is undone on exit, and any leftover from a crash is undone on the next start and by the uninstaller.
-- **Layout.** `src/MandoSwitch/Pro.cs` (protocol, sticks), `Bridge.cs` (device loop, mapping, virtual pad), `Hide.cs` (HidHide), `Program.cs` (tray and self-test), `Settings.cs`, `Screenshot.cs`, `Lang.cs` (all interface texts, one row per string in six languages). `tools/` has two small PowerShell helpers (`probe.ps1` lists and reads Nintendo HID devices, `xinput-monitor.ps1` prints what XInput sees) that were used to reverse-engineer the clone.
+- **Layout.** `src/MandoSwitch/Pro.cs` (Switch protocol, sticks), `Sony.cs` (DualShock 4 / DualSense, experimental), `Bridge.cs` (device loop, mapping, virtual pad), `Hide.cs` (HidHide), `Program.cs` (tray and self-test), `Settings.cs`, `Screenshot.cs`, `Lang.cs` (all interface texts, one row per string in six languages). `tools/` has two small PowerShell helpers (`probe.ps1` lists and reads Nintendo HID devices, `xinput-monitor.ps1` prints what XInput sees) that were used to reverse-engineer the clone.
 
 ## Credits and licenses
 

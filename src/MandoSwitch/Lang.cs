@@ -3,7 +3,7 @@ using System.Globalization;
 enum Kind { Waiting, Calibrating, Connected }
 
 // Lo que el hilo del mando publica; el texto se arma en la interfaz, en el idioma vigente
-record Status(Kind K, string Via = "", int Pct = 0, bool Charging = false);
+record Status(Kind K, string Via = "", int Pct = 0, bool Charging = false, bool Exp = false); // Pct < 0: sin dato de bateria; Exp: mando experimental
 
 // Textos de la interfaz. Orden de cada fila: es, en, pt, ja, ko, zh (simplificado).
 static class L
@@ -45,6 +45,8 @@ static class L
             "キャリブレーション中、スティックに触れないでください...", "보정 중입니다. 스틱을 건드리지 마세요...", "正在校准，请勿触碰摇杆..." },
         ["connected"] = new[] { "Conectado por {0} - batería {1} %", "Connected via {0} - battery {1} %", "Conectado via {0} - bateria {1} %",
             "{0}で接続中 - バッテリー {1} %", "{0} 연결됨 - 배터리 {1} %", "已通过 {0} 连接 - 电量 {1} %" },
+        ["connectednb"] = new[] { "Conectado por {0}", "Connected via {0}", "Conectado via {0}", "{0}で接続中", "{0} 연결됨", "已通过 {0} 连接" },
+        ["experimental"] = new[] { " (experimental)", " (experimental)", " (experimental)", "（実験的）", " (실험적)", "（实验性）" },
         ["charging"] = new[] { " (cargando)", " (charging)", " (carregando)", "（充電中）", " (충전 중)", "（充电中）" },
         ["nohid"] = new[] { " (sin HidHide)", " (no HidHide)", " (sem HidHide)", "（HidHideなし）", " (HidHide 없음)", "（无 HidHide）" },
         ["novigem"] = new[] { "No se pudo crear el mando virtual. Instala ViGEmBus.", "Could not create the virtual controller. Install ViGEmBus.",
@@ -57,7 +59,8 @@ static class L
     public static string StatusText(Status s, bool hidHide) => s.K switch
     {
         Kind.Calibrating => Get("calibrating"),
-        Kind.Connected => string.Format(Get("connected"), s.Via, s.Pct) + (s.Charging ? Get("charging") : "") + (hidHide ? "" : Get("nohid")),
+        Kind.Connected => (s.Pct < 0 ? string.Format(Get("connectednb"), s.Via) : string.Format(Get("connected"), s.Via, s.Pct))
+            + (s.Charging ? Get("charging") : "") + (s.Exp ? Get("experimental") : "") + (hidHide ? "" : Get("nohid")),
         _ => Get("waiting"),
     };
 }

@@ -61,8 +61,7 @@ static class Hide
     {
         if (!Available) return;
         foreach (Match m in Regex.Matches(Exec("--dev-list"), "\"(.*?)\""))
-            if (m.Groups[1].Value.Contains("VID_057E", StringComparison.OrdinalIgnoreCase)
-                || m.Groups[1].Value.Contains("VID&0002057E", StringComparison.OrdinalIgnoreCase))
+            if (new[] { "VID_057E", "VID&0002057E", "VID_054C", "VID&0002054C" }.Any(v => m.Groups[1].Value.Contains(v, StringComparison.OrdinalIgnoreCase)))
                 Exec("--dev-unhide", m.Groups[1].Value);
     }
 }
