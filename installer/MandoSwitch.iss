@@ -1,6 +1,6 @@
-; Instalador de Chameleon. Compilar con: ISCC.exe MandoSwitch.iss (necesita ..\dist\Chameleon.exe y deps\)
+﻿; Instalador de Chameleon. Compilar con: ISCC.exe MandoSwitch.iss (necesita ..\dist\Chameleon.exe y deps\)
 #define AppName "Chameleon"
-#define AppVersion "1.0.0"
+#define AppVersion "1.1.0"
 #define ViGEm "ViGEmBus_1.22.0_x64_x86_arm64.exe"
 #define HidHide "HidHide_1.5.230_x64.exe"
 
@@ -25,10 +25,42 @@ SetupIconFile=..\src\MandoSwitch\icons\app.ico
 AppMutex=Chameleon.Single,MandoSwitch.Single
 
 [Languages]
+Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"
+Name: "brazilianportuguese"; MessagesFile: "compiler:Languages\BrazilianPortuguese.isl"
+Name: "japanese"; MessagesFile: "compiler:Languages\Japanese.isl"
+Name: "korean"; MessagesFile: "compiler:Languages\Korean.isl"
+; no viene con todas las versiones de Inno Setup: se incluye una copia del repositorio oficial
+Name: "chinesesimplified"; MessagesFile: "Languages\ChineseSimplified.isl"
+
+[CustomMessages]
+english.AutoStart=Start Chameleon with Windows
+spanish.AutoStart=Iniciar Chameleon con Windows
+brazilianportuguese.AutoStart=Iniciar o Chameleon com o Windows
+japanese.AutoStart=Windows の起動時に Chameleon を開始する
+korean.AutoStart=Windows 시작 시 Chameleon 실행
+chinesesimplified.AutoStart=开机时启动 Chameleon
+chinesesimplified.OpenApp=打开 Chameleon
+chinesesimplified.InstallingViGEm=正在安装 ViGEmBus（虚拟 Xbox 手柄）...
+chinesesimplified.InstallingHidHide=正在安装 HidHide（隐藏物理手柄）...
+english.OpenApp=Open Chameleon
+spanish.OpenApp=Abrir Chameleon
+brazilianportuguese.OpenApp=Abrir o Chameleon
+japanese.OpenApp=Chameleon を開く
+korean.OpenApp=Chameleon 열기
+english.InstallingViGEm=Installing ViGEmBus (virtual Xbox controller)...
+spanish.InstallingViGEm=Instalando ViGEmBus (mando Xbox virtual)...
+brazilianportuguese.InstallingViGEm=Instalando o ViGEmBus (controle Xbox virtual)...
+japanese.InstallingViGEm=ViGEmBus（仮想 Xbox コントローラー）をインストールしています...
+korean.InstallingViGEm=ViGEmBus(가상 Xbox 컨트롤러) 설치 중...
+english.InstallingHidHide=Installing HidHide (hides the physical controller)...
+spanish.InstallingHidHide=Instalando HidHide (ocultar el mando físico)...
+brazilianportuguese.InstallingHidHide=Instalando o HidHide (oculta o controle físico)...
+japanese.InstallingHidHide=HidHide（物理コントローラーを隠す）をインストールしています...
+korean.InstallingHidHide=HidHide(실제 컨트롤러 숨기기) 설치 중...
 
 [Tasks]
-Name: "autostart"; Description: "Iniciar Chameleon con Windows"
+Name: "autostart"; Description: "{cm:AutoStart}"
 
 [InstallDelete]
 ; restos de la version anterior (se llamaba Mando Switch)
@@ -50,11 +82,11 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: 
 
 [Run]
 ; instaladores de Nefarius (Advanced Installer): /exenoui /qn = sin interfaz
-Filename: "{tmp}\{#ViGEm}"; Parameters: "/exenoui /qn /norestart"; StatusMsg: "Instalando ViGEmBus (mando Xbox virtual)..."; \
+Filename: "{tmp}\{#ViGEm}"; Parameters: "/exenoui /qn /norestart"; StatusMsg: "{cm:InstallingViGEm}"; \
     Flags: waituntilterminated; Check: NeedViGEm
-Filename: "{tmp}\{#HidHide}"; Parameters: "/exenoui /qn /norestart"; StatusMsg: "Instalando HidHide (ocultar el mando fisico)..."; \
+Filename: "{tmp}\{#HidHide}"; Parameters: "/exenoui /qn /norestart"; StatusMsg: "{cm:InstallingHidHide}"; \
     Flags: waituntilterminated; Check: NeedHidHide
-Filename: "{app}\Chameleon.exe"; Description: "Abrir Chameleon"; Flags: nowait postinstall skipifsilent runasoriginaluser
+Filename: "{app}\Chameleon.exe"; Description: "{cm:OpenApp}"; Flags: nowait postinstall skipifsilent runasoriginaluser
 
 [UninstallRun]
 ; si la app murio sin soltar el mando, devolverlo; y quitar la app de la lista de HidHide

@@ -19,7 +19,7 @@ static class App
         try { ctx = new TrayContext(); }
         catch (Exception e) // ViGEmBus ausente o roto: sin el no hay mando virtual
         {
-            MessageBox.Show($"No se pudo crear el mando virtual. Instala ViGEmBus.\n\n{e.Message}", "Chameleon",
+            MessageBox.Show($"{L.Get("novigem")}\n\n{e.Message}", "Chameleon",
                 MessageBoxButtons.OK, MessageBoxIcon.Error);
             return;
         }
@@ -35,11 +35,14 @@ sealed class TrayContext : ApplicationContext
     readonly Bridge bridge;
     readonly Thread worker;
     readonly Icon off = Load("tray-off.ico"), on = Load("tray-on.ico"), low = Load("tray-low.ico");
-    readonly ToolStripMenuItem status = new("Iniciando...") { Enabled = false };
+    readonly ToolStripMenuItem status = new() { Enabled = false };
+    readonly ToolStripMenuItem labels = new() { CheckOnClick = true }, capture = new() { CheckOnClick = true },
+        nameItem = new(), dead = new(), auto = new() { CheckOnClick = true }, langMenu = new(), quit = new();
     Icon? shown;
 
     public TrayContext()
     {
+        L.Set(cfg.Lang);
         Log.Reset();
         Stick.Dead = cfg.Dead;
         bridge = new Bridge(cfg, cts.Token);
@@ -50,22 +53,22 @@ sealed class TrayContext : ApplicationContext
         menu.Items.Add(status);
         menu.Items.Add(new ToolStripSeparator());
 
-        var labels = new ToolStripMenuItem("Letras de Nintendo en A/B/X/Y") { Checked = cfg.Labels, CheckOnClick = true };
+        labels.Checked = cfg.Labels;
         labels.CheckedChanged += (_, _) => { cfg.Labels = labels.Checked; cfg.Save(); };
         menu.Items.Add(labels);
 
-        var capture = new ToolStripMenuItem("Capture = captura del monitor activo") { Checked = cfg.Capture, CheckOnClick = true };
+        capture.Checked = cfg.Capture;
         capture.CheckedChanged += (_, _) => { cfg.Capture = capture.Checked; cfg.Save(); };
         menu.Items.Add(capture);
 
-        menu.Items.Add("Nombre del mando...", null, (_, _) =>
+        nameItem.Click += (_, _) =>
         {
-            var n = Microsoft.VisualBasic.Interaction.InputBox("Nombre que se muestra en la bandeja (hasta 20 letras):", "Chameleon", cfg.Name).Trim();
+            var n = Microsoft.VisualBasic.Interaction.InputBox(L.Get("nameprompt"), "Chameleon", cfg.Name).Trim();
             if (n.Length == 0) return; // cancelar o dejarlo vacio: se queda el actual
             cfg.Name = n.Length > 20 ? n[..20] : n; cfg.Save(); Refresh();
-        });
+        };
+        menu.Items.Add(nameItem);
 
-        var dead = new ToolStripMenuItem("Zona muerta de los sticks");
         foreach (int pct in new[] { 0, 5, 8, 12, 18 })
         {
             var it = new ToolStripMenuItem($"{pct} %") { Checked = Math.Abs(cfg.Dead * 100 - pct) < 0.5 };
@@ -78,13 +81,31 @@ sealed class TrayContext : ApplicationContext
         }
         menu.Items.Add(dead);
 
-        var auto = new ToolStripMenuItem("Iniciar con Windows") { Checked = Settings.Autostart, CheckOnClick = true };
+        auto.Checked = Settings.Autostart;
         auto.CheckedChanged += (_, _) => Settings.Autostart = auto.Checked;
         menu.Items.Add(auto);
 
+        var langItems = new List<(string code, ToolStripMenuItem item)>();
+        var langs = new List<(string code, string label)> { ("auto", "Auto") };
+        for (int n = 0; n < L.Names.Length; n++) langs.Add((L.Code(n), L.Names[n]));
+        foreach (var (code, label) in langs)
+        {
+            var li = new ToolStripMenuItem(label) { Checked = cfg.Lang == code };
+            li.Click += (_, _) =>
+            {
+                cfg.Lang = code; cfg.Save(); L.Set(code);
+                foreach (var (c, i) in langItems) i.Checked = c == code;
+                Localize(); Refresh();
+            };
+            langItems.Add((code, li)); langMenu.DropDownItems.Add(li);
+        }
+        menu.Items.Add(langMenu);
+
         menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add("Salir", null, (_, _) => Quit());
+        quit.Click += (_, _) => Quit();
+        menu.Items.Add(quit);
         tray.ContextMenuStrip = menu;
+        Localize();
 
         // El hilo del puente solo publica estado; la interfaz lo lee aqui, sin cruzar hilos
         var timer = new System.Windows.Forms.Timer { Interval = 500 };
@@ -93,9 +114,16 @@ sealed class TrayContext : ApplicationContext
         Refresh();
     }
 
+    void Localize()
+    {
+        labels.Text = L.Get("labels"); capture.Text = L.Get("capture"); nameItem.Text = L.Get("name");
+        dead.Text = L.Get("dead"); auto.Text = L.Get("autostart"); quit.Text = L.Get("quit");
+        langMenu.Text = L.Current == 1 ? L.Get("language") : L.Get("language") + " / Language"; // pista para quien cayo en un idioma que no lee
+    }
+
     void Refresh()
     {
-        string text = bridge.Text;
+        string text = L.StatusText(bridge.St, Hide.Available);
         status.Text = text;
         var tip = $"{cfg.Name} - {text}";
         tray.Text = tip[..Math.Min(63, tip.Length)]; // el tooltip de Windows admite 63 caracteres
@@ -145,6 +173,10 @@ static class SelfTest
             Check(Pro.Parse(r, r.Length)!.Value.Bat == 0x80, "parse bateria");
             Stick.Dead = 0;
             Check(new Stick { Cx = 2049, Cy = 2049 }.Norm(2049, 2049) == (0, 0), "zona muerta 0 sin NaN");
+            foreach (var (k, v) in L.T) Check(v.Length == 6 && v.All(s => s.Length > 0), "idiomas: " + k);
+            L.Set("xx"); Check(L.Current == 1, "idioma desconocido cae en ingles");
+            L.Set("ja"); Check(L.StatusText(new(Kind.Connected, "USB", 50, true), true).Contains("USB") && L.StatusText(new(Kind.Connected, "USB", 50, true), true).Contains("50"), "texto de estado");
+            L.Set("auto");
             Console.WriteLine("selftest OK");
         }
         catch (Exception e) { Console.WriteLine("selftest FALLO: " + e.Message); Environment.ExitCode = 1; }

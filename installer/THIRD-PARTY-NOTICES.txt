@@ -276,3 +276,12 @@ limitations under the License.
 ==============================================================================
 Copyright (c) .NET Foundation and Contributors. Licencia MIT: https://github.com/dotnet/runtime/blob/main/LICENSE.TXT
 
+
+--------------------------------------------------------------------------------
+Inno Setup language files
+--------------------------------------------------------------------------------
+The installer's Chinese (Simplified) messages come from installer/Languages/ChineseSimplified.isl,
+copied unmodified from the Inno Setup repository (https://github.com/jrsoftware/issrc,
+Files/Languages). Translation by Zhenghan Yang (Kira). It is distributed under the Inno Setup
+license: https://jrsoftware.org/files/is/license.txt
+The other installer languages use the translations bundled with Inno Setup itself.

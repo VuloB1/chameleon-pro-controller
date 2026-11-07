@@ -15,7 +15,7 @@ sealed class Bridge
     readonly IXbox360Controller pad;
     volatile byte rumble;
 
-    public volatile string Text = "Esperando el mando...";
+    public volatile Status St = new(Kind.Waiting);
     public volatile bool Connected;
     public volatile bool LowBattery;
 
@@ -55,7 +55,7 @@ sealed class Bridge
                     if (ct.IsCancellationRequested) break;
                     try { Open(dev); }
                     catch (Exception e) { Log.Write($"Sesion terminada: {e.GetType().Name} {e.Message}"); }
-                    Connected = false; LowBattery = false; Text = "Esperando el mando...";
+                    Connected = false; LowBattery = false; St = new(Kind.Waiting);
                     Neutral();
                 }
                 ct.WaitHandle.WaitOne(1000);
@@ -87,7 +87,7 @@ sealed class Bridge
 
         Frame? Next() { int n = s.Read(buf); return Pro.Parse(buf, n); }
 
-        Text = "Calibrando, no toques los sticks...";
+        St = new(Kind.Calibrating);
         double lx = 0, ly = 0, rx = 0, ry = 0; int count = 0;
         while (count < 40 && !ct.IsCancellationRequested)
             if (Next() is { } f) { lx += f.LX; ly += f.LY; rx += f.RX; ry += f.RY; count++; }
@@ -110,8 +110,7 @@ sealed class Bridge
                 var (pct, charging) = Pro.Battery(fr.Bat);
                 LowBattery = pct <= 25 && !charging;
                 Log.Write($"Bateria {pct} %{(charging ? " cargando" : "")} (byte 0x{fr.Bat:X2})");
-                Text = $"Conectado por {via} - bateria {pct} %" + (charging ? " (cargando)" : "")
-                    + (Hide.Available ? "" : " (sin HidHide)");
+                St = new(Kind.Connected, via, pct, charging);
             }
             Map(fr, L, R);
             pad.SubmitReport();

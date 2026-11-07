@@ -23,6 +23,7 @@ It was built because the usual converters tend to show *two* controllers (the re
 - **Capture button = screenshot** of the monitor with the active window, saved to `Pictures\Screenshots` with a shutter sound. Optional.
 - **Button layout of your choice:** Xbox positions (default) or Nintendo letters.
 - **Nickname** for your controller, shown in the tray.
+- **Six languages:** English, Español, Português, 日本語, 한국어 and 简体中文. The app and the installer follow your Windows language, and the app can be switched from the tray menu.
 - **Start with Windows**, single instance, one-click installer that also installs the two drivers it needs.
 
 ## How it works
@@ -45,7 +46,7 @@ It was built because the usual converters tend to show *two* controllers (the re
 
 > **Windows SmartScreen:** the installer is not code-signed (a certificate costs money), so Windows may warn you. Choose **More info → Run anyway**. You can compare the file with the SHA-256 listed in the release notes, and the whole source is in this repository.
 
-> **Language:** the app and installer interface are currently in **Spanish** only. English translation is on the wish list; the menu is explained below.
+> **Language:** the installer asks which language to use (English, Spanish, Brazilian Portuguese, Japanese, Korean or Simplified Chinese). The translations were written by the author with an AI assistant and not reviewed by native speakers; corrections are very welcome as issues or pull requests (`src/MandoSwitch/Lang.cs`).
 
 ### Pairing the controller
 
@@ -57,18 +58,19 @@ When Chameleon sees the controller it calibrates for a moment (**do not touch th
 ## Using it
 
 <p align="center">
-  <img src="docs/tray-menu.png" alt="Chameleon tray menu with English explanations of each entry" width="100%">
+  <img src="docs/tray-menu.png" alt="Chameleon tray menu with an explanation of each entry" width="100%">
 </p>
 
-| Menu entry (Spanish) | What it does |
+| Menu entry | What it does |
 |---|---|
-| *Conectado por … - batería …* | Status line: connection type and battery. |
-| *Letras de Nintendo en A/B/X/Y* | Off (default): buttons keep their **positions** (Nintendo B at the bottom acts as Xbox A). On: the letters match (Nintendo B acts as Xbox B). |
-| *Capture = captura del monitor activo* | The Capture button takes a screenshot of the active monitor. |
-| *Nombre del mando…* | Sets the nickname shown in the tray tooltip (up to 20 characters). |
-| *Zona muerta de los sticks* | 0 / 5 / 8 / 12 / 18 %. Default 8 %. |
-| *Iniciar con Windows* | Starts Chameleon when you sign in. |
-| *Salir* | Quits and gives the physical controller back to Windows. |
+| *Connected via … - battery …* | Status line: connection type and battery. |
+| *Nintendo letters on A/B/X/Y* | Off (default): buttons keep their **positions** (Nintendo B at the bottom acts as Xbox A). On: the letters match (Nintendo B acts as Xbox B). |
+| *Capture = screenshot of the active monitor* | The Capture button takes a screenshot of the active monitor. |
+| *Controller name…* | Sets the nickname shown in the tray tooltip (up to 20 characters). |
+| *Stick dead zone* | 0 / 5 / 8 / 12 / 18 %. Default 8 %. |
+| *Start with Windows* | Starts Chameleon when you sign in. |
+| *Language* | *Auto* (follows Windows, English if unsupported) or one of the six languages. Applies immediately. |
+| *Quit* | Quits and gives the physical controller back to Windows. |
 
 <p align="center">
   <img src="docs/tray-states.png" alt="The three tray icon states: connected, waiting and low battery" width="70%">
@@ -113,7 +115,7 @@ Steam Input wants to manage any controller it sees, which causes stray button pr
 
 | Symptom | Try |
 |---|---|
-| Games see two controllers | Check that HidHide is installed (the tray status says *(sin HidHide)* when it is missing). Turn the controller off and on once. |
+| Games see two controllers | Check that HidHide is installed (the tray status ends with *(no HidHide)* when it is missing). Turn the controller off and on once. |
 | Nothing happens when connecting | Open `%AppData%\Chameleon\log.txt` to see what the app saw. Make sure only one Chameleon is running. |
 | The controller stays invisible after Chameleon crashed | Start Chameleon again (it restores hidden devices at start), or uninstall it, which does the same. |
 | Stray presses while Steam is open | See [Steam](#steam). |
@@ -145,17 +147,19 @@ To build the installer, download the two driver installers into `installer/deps/
 
 ```powershell
 & "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe" installer\MandoSwitch.iss
-# -> installer\out\Chameleon-Setup-1.0.0.exe
+# -> installer\out\Chameleon-Setup-1.1.0.exe
 ```
 
-> The source folder and several comments are in Spanish (the project started under the name *Mando Switch*). The assembly, installer and everything users see are named Chameleon.
+The installer needs Inno Setup 6.5 or newer for the bundled `installer/Languages/ChineseSimplified.isl`; the other languages come with Inno Setup.
+
+> The source folder and several code comments are in Spanish (the project started under the name *Mando Switch*). The assembly, installer and everything users see are named Chameleon.
 
 ## Technical notes
 
 - **Protocol.** Over Bluetooth the controller starts in the simple report `0x3F`; sending subcommand `0x03` with argument `0x30` switches it to the full report `0x30`. Over USB the `0x80 0x02` handshake and `0x80 0x04` ("no timeout") come first. Report `0x30`: byte 2 battery/connection, bytes 3-5 buttons, bytes 6-11 the two sticks (12 bits per axis). Output goes in report `0x01` (subcommand in byte 10) or `0x10` (rumble only), with the length taken from the HID capabilities (49 over Bluetooth, 64 over USB).
 - **Calibration.** The stick centre is the average of 40 frames taken when the controller connects; the radial range starts at 1500 counts and grows to what is observed (capped at 2047). Inside the dead zone the output is exactly zero.
 - **Hiding.** HidHide's command-line tool is used to register Chameleon's executable, hide the device instance path and turn the cloak on. Everything is undone on exit, and any leftover from a crash is undone on the next start and by the uninstaller.
-- **Layout.** `src/MandoSwitch/Pro.cs` (protocol, sticks), `Bridge.cs` (device loop, mapping, virtual pad), `Hide.cs` (HidHide), `Program.cs` (tray and self-test), `Settings.cs`, `Screenshot.cs`. `tools/` has two small PowerShell helpers (`probe.ps1` lists and reads Nintendo HID devices, `xinput-monitor.ps1` prints what XInput sees) that were used to reverse-engineer the clone.
+- **Layout.** `src/MandoSwitch/Pro.cs` (protocol, sticks), `Bridge.cs` (device loop, mapping, virtual pad), `Hide.cs` (HidHide), `Program.cs` (tray and self-test), `Settings.cs`, `Screenshot.cs`, `Lang.cs` (all interface texts, one row per string in six languages). `tools/` has two small PowerShell helpers (`probe.ps1` lists and reads Nintendo HID devices, `xinput-monitor.ps1` prints what XInput sees) that were used to reverse-engineer the clone.
 
 ## Credits and licenses
 
@@ -165,6 +169,7 @@ Chameleon is released under the [MIT license](LICENSE). It uses and, in the inst
 - [HidHide](https://github.com/nefarius/HidHide) (MIT), by Nefarius Software Solutions
 - [HidSharp](https://github.com/IntergatedCircuits/HidSharp) (Apache-2.0)
 - .NET (MIT)
+- The Chinese (Simplified) installer messages from the [Inno Setup](https://github.com/jrsoftware/issrc) repository, translated by Zhenghan Yang (Kira)
 
 Full notices are in [`installer/THIRD-PARTY-NOTICES.txt`](installer/THIRD-PARTY-NOTICES.txt).
 
