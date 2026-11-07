@@ -6,7 +6,8 @@ sealed class Settings
     public bool Labels { get; set; }      // true: letras de Nintendo; false: posicion fisica de Xbox
     public double Dead { get; set; } = 0.08;
     public string Name { get; set; } = "Chameleon"; // apodo que se muestra en la bandeja
-    public string Lang { get; set; } = "auto";      // "auto" = idioma de Windows, o es/en/pt/ja/ko/zh
+    public string NotifiedVersion { get; set; } = "";
+    public string Lang { get; set; } = "auto";     // "auto" = idioma de Windows, o es/en/pt/ja/ko/zh
     public bool Capture { get; set; } = true; // boton Capture = captura de pantalla de Windows (Win+ImprPant)
 
     public static readonly string Dir =

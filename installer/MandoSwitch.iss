@@ -1,6 +1,6 @@
 ﻿; Instalador de Chameleon. Compilar con: ISCC.exe MandoSwitch.iss (necesita ..\dist\Chameleon.exe y deps\)
 #define AppName "Chameleon"
-#define AppVersion "1.1.0"
+#define AppVersion "1.2.0"
 #define ViGEm "ViGEmBus_1.22.0_x64_x86_arm64.exe"
 #define HidHide "HidHide_1.5.230_x64.exe"
 

@@ -38,6 +38,8 @@ sealed class TrayContext : ApplicationContext
     readonly ToolStripMenuItem status = new() { Enabled = false };
     readonly ToolStripMenuItem labels = new() { CheckOnClick = true }, capture = new() { CheckOnClick = true },
         nameItem = new(), dead = new(), auto = new() { CheckOnClick = true }, langMenu = new(), quit = new();
+    readonly ToolStripMenuItem updateItem = new();
+    string updateVer = "", updateUrl = "";
     Icon? shown;
 
     public TrayContext()
@@ -101,11 +103,21 @@ sealed class TrayContext : ApplicationContext
         }
         menu.Items.Add(langMenu);
 
+        updateItem.Visible = false;
+        updateItem.Click += (_, _) => System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(updateUrl) { UseShellExecute = true });
+        menu.Items.Add(updateItem);
+
         menu.Items.Add(new ToolStripSeparator());
         quit.Click += (_, _) => Quit();
         menu.Items.Add(quit);
         tray.ContextMenuStrip = menu;
         Localize();
+
+        // Busca version nueva al arrancar y despues cada 24 h (el mando suele estar horas en la bandeja)
+        var upd = new System.Windows.Forms.Timer { Interval = 24 * 3600 * 1000 };
+        upd.Tick += async (_, _) => await CheckUpdate(false);
+        upd.Start();
+        _ = CheckUpdate(true);
 
         // El hilo del puente solo publica estado; la interfaz lo lee aqui, sin cruzar hilos
         var timer = new System.Windows.Forms.Timer { Interval = 500 };
@@ -114,8 +126,22 @@ sealed class TrayContext : ApplicationContext
         Refresh();
     }
 
+    async Task CheckUpdate(bool notify)
+    {
+        if (await Update.Check() is not { } u) return;
+        updateVer = u.ver; updateUrl = u.url;
+        updateItem.Visible = true; Localize();
+        if (notify && cfg.NotifiedVersion != u.ver) // un solo aviso por version, el resto queda en el menu
+        {
+            cfg.NotifiedVersion = u.ver; cfg.Save();
+            tray.ShowBalloonTip(5000, "Chameleon", string.Format(L.Get("update"), updateVer), ToolTipIcon.Info);
+            tray.BalloonTipClicked += (_, _) => updateItem.PerformClick();
+        }
+    }
+
     void Localize()
     {
+        updateItem.Text = string.Format(L.Get("update"), updateVer);
         labels.Text = L.Get("labels"); capture.Text = L.Get("capture"); nameItem.Text = L.Get("name");
         dead.Text = L.Get("dead"); auto.Text = L.Get("autostart"); quit.Text = L.Get("quit");
         langMenu.Text = L.Current == 1 ? L.Get("language") : L.Get("language") + " / Language"; // pista para quien cayo en un idioma que no lee
@@ -177,6 +203,8 @@ static class SelfTest
             L.Set("xx"); Check(L.Current == 1, "idioma desconocido cae en ingles");
             L.Set("ja"); Check(L.StatusText(new(Kind.Connected, "USB", 50, true), true).Contains("USB") && L.StatusText(new(Kind.Connected, "USB", 50, true), true).Contains("50"), "texto de estado");
             L.Set("auto");
+            var cur = new Version(1, 1, 0);
+            Check(Update.Newer("v1.2.0", cur) && Update.Newer("1.1.1", cur) && !Update.Newer("v1.1.0", cur) && !Update.Newer("v1.0.9", cur) && !Update.Newer("basura", cur), "comparar versiones");
             Console.WriteLine("selftest OK");
         }
         catch (Exception e) { Console.WriteLine("selftest FALLO: " + e.Message); Environment.ExitCode = 1; }

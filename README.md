@@ -24,6 +24,7 @@ It was built because the usual converters tend to show *two* controllers (the re
 - **Button layout of your choice:** Xbox positions (default) or Nintendo letters.
 - **Nickname** for your controller, shown in the tray.
 - **Six languages:** English, Español, Português, 日本語, 한국어 and 简体中文. The app and the installer follow your Windows language, and the app can be switched from the tray menu.
+- **Update notice:** tells you when a new release is out (it only notifies, you choose when to install).
 - **Start with Windows**, single instance, one-click installer that also installs the two drivers it needs.
 
 ## How it works
@@ -69,6 +70,7 @@ When Chameleon sees the controller it calibrates for a moment (**do not touch th
 | *Controller name…* | Sets the nickname shown in the tray tooltip (up to 20 characters). |
 | *Stick dead zone* | 0 / 5 / 8 / 12 / 18 %. Default 8 %. |
 | *Start with Windows* | Starts Chameleon when you sign in. |
+| *New version available* | Appears only when a newer release exists on GitHub; click it to open the download page. Chameleon checks at startup and every 24 hours with a single request to the GitHub API (no personal data is sent). It never downloads or installs anything by itself. |
 | *Language* | *Auto* (follows Windows, English if unsupported) or one of the six languages. Applies immediately. |
 | *Quit* | Quits and gives the physical controller back to Windows. |
 
@@ -147,7 +149,7 @@ To build the installer, download the two driver installers into `installer/deps/
 
 ```powershell
 & "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe" installer\MandoSwitch.iss
-# -> installer\out\Chameleon-Setup-1.1.0.exe
+# -> installer\out\Chameleon-Setup-1.2.0.exe
 ```
 
 The installer needs Inno Setup 6.5 or newer for the bundled `installer/Languages/ChineseSimplified.isl`; the other languages come with Inno Setup.

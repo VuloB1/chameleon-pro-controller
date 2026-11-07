@@ -36,6 +36,8 @@ static class L
         ["autostart"] = new[] { "Iniciar con Windows", "Start with Windows", "Iniciar com o Windows",
             "Windowsと同時に起動", "Windows 시작 시 실행", "开机时启动" },
         ["language"] = new[] { "Idioma", "Language", "Idioma", "言語", "언어", "语言" },
+        ["update"] = new[] { "Nueva versión disponible: v{0}", "New version available: v{0}", "Nova versão disponível: v{0}",
+            "新しいバージョンがあります: v{0}", "새 버전이 있습니다: v{0}", "有新版本可用：v{0}" },
         ["quit"] = new[] { "Salir", "Quit", "Sair", "終了", "종료", "退出" },
         ["waiting"] = new[] { "Esperando el mando...", "Waiting for the controller...", "Aguardando o controle...",
             "コントローラーを待っています...", "컨트롤러를 기다리는 중...", "正在等待手柄..." },
